@@ -14,10 +14,13 @@ from models import (
     RSVPInput,
     chat_protocol,
     structured_output_protocol,
-    rsvp_response_protocol
+    rsvp_response_protocol,
+    NaturalLanguageRequest
 )
 from rsvp_service import RSVPService
 import logging
+import re
+from datetime import datetime
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -226,6 +229,46 @@ async def handle_agent_rsvp_request(ctx: Context, sender: str, msg: AgentRSVPReq
         await ctx.send(sender, AgentRSVPResponse(
             status="error",
             message="Failed to process RSVP request"
+        ))
+
+def parse_natural_language(message: str) -> RSVPRequest:
+    # Extract date using regex (format: Month DD YYYY)
+    date_match = re.search(r'(\w+ \d{1,2}(?:st|nd|rd|th)? \d{4})', message)
+    # Extract time (format: X PM/AM)
+    time_match = re.search(r'(\d{1,2}(?::\d{2})?\s*(?:AM|PM|am|pm))', message)
+    # Extract location (after "in" or "at")
+    location_match = re.search(r'(?:in|at)\s+the\s+(.+?)(?:\.|$)', message)
+    
+    # Get event name (assume it's the first capitalized phrase)
+    event_match = re.search(r'for\s+(?:a|an)\s+([A-Z][a-zA-Z\s]+?)(?:\son|at|in|\.)', message)
+    
+    return RSVPRequest(
+        event_name=event_match.group(1) if event_match else "Unnamed Event",
+        date=date_match.group(1) if date_match else "",
+        time=time_match.group(1) if time_match else "",
+        location=location_match.group(1) if location_match else "",
+        description="Created from natural language request"
+    )
+
+@agent.on_message(model=NaturalLanguageRequest)
+async def handle_natural_language(ctx: Context, sender: str, msg: NaturalLanguageRequest):
+    try:
+        # Parse the natural language request
+        rsvp_request = parse_natural_language(msg.message)
+        ctx.logger.info(f"Parsed request: {rsvp_request.dict()}")
+        
+        # Create response
+        response = RSVPResponse(
+            status="confirmed",
+            message=f"RSVP confirmed for {rsvp_request.event_name} on {rsvp_request.date} at {rsvp_request.time} in {rsvp_request.location}"
+        )
+        
+        await ctx.send(sender, response)
+    except Exception as e:
+        ctx.logger.error(f"Error processing natural language request: {str(e)}")
+        await ctx.send(sender, RSVPResponse(
+            status="error",
+            message=f"Failed to process natural language request: {str(e)}"
         ))
 
 # Fungsi helper untuk testing

@@ -1,7 +1,7 @@
 # File: frontend/test_agent.py
 import asyncio
 from uagents import Agent, Context
-from models import AgentRSVPRequest, AgentRSVPResponse
+from models import NaturalLanguageRequest, RSVPResponse
 import logging
 
 # Configure logging
@@ -9,29 +9,31 @@ logging.basicConfig(level=logging.DEBUG)
 
 # Initialize test agent
 tester_agent = Agent(
-    name="tester_agent",
-    port=8002,
-    endpoint=["http://127.0.0.1:8002/submit"]
+    name="llm_tester_agent",
+    port=8003,
+    endpoint=["http://127.0.0.1:8003/submit"]
 )
 
-# Define the target agent's address
-RSVP_AGENT_ADDRESS = "agent1qduet3vnuswx0ep09szc94u2lrmrn9ws9mrxq0990dwh5cxgzktt2j6jknz"
+# Target agent address
+TARGET_AGENT_ADDRESS = "agent1qduet3vnuswx0ep09szc94u2lrmrn9ws9mrxq0990dwh5cxgzktt2j6jknz"
 
 @tester_agent.on_interval(period=5.0)
-async def send_test_message(ctx: Context):
-    request = AgentRSVPRequest(
-        event_name="Test Event",
-        date="2025-08-20",
-        time="14:00",
-        location="Test Location",
-        description="Test Description"
+async def send_message_on_interval(ctx: Context):
+    # Create a natural language request
+    nl_request = NaturalLanguageRequest(
+        message="I want to RSVP for a Python Workshop on August 25th 2025 at 2 PM in the Jakarta Digital Hub"
     )
-    await ctx.send(RSVP_AGENT_ADDRESS, request)
-    ctx.logger.info(f"Sent test request to {RSVP_AGENT_ADDRESS}")
+    
+    try:
+        await ctx.send(TARGET_AGENT_ADDRESS, nl_request)
+        ctx.logger.info(f"Mengirim pesan natural language ke {TARGET_AGENT_ADDRESS}")
+    except Exception as e:
+        ctx.logger.error(f"Error sending message: {str(e)}")
 
-@tester_agent.on_message(model=AgentRSVPResponse)
-async def handle_response(ctx: Context, sender: str, msg: AgentRSVPResponse):
-    ctx.logger.info(f"Received response: {msg.dict()}")
+@tester_agent.on_message(model=RSVPResponse)
+async def handle_response(ctx: Context, sender: str, msg: RSVPResponse):
+    ctx.logger.info(f"Received response: {msg.status}")
+    ctx.logger.info(f"Message: {msg.message}")
 
 if __name__ == "__main__":
     tester_agent.run()

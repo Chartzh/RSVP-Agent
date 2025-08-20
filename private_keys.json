@@ -6,5 +6,9 @@
     "rsvp_manager_agent": {
         "identity_key": "a0ecbe0b18db797dd1deb5ad26f1cef88e82a5295c0b9207ba4d5c9661310427",
         "wallet_key": "v2nz2hrClHbNgcz3TfyZXe4eqNAnqMmSckyAVjwbqPU="
+    },
+    "llm_tester_agent": {
+        "identity_key": "17cf3a006ef45c69edd513a5d0d9cad3f0aeee996ac0990650e199c82eee9d42",
+        "wallet_key": "2WuEG49g3g1lICoh+8pLi2L3NnCE4MMC5n/NYP5iGp0="
     }
 }

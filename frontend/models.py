@@ -96,3 +96,20 @@ class ServiceResult(BaseModel):
 chat_protocol = Protocol("Chat")
 structured_output_protocol = Protocol("StructuredOutput")
 rsvp_response_protocol = Protocol("RSVPResponse")
+
+from uagents import Model
+from typing import Optional
+
+class NaturalLanguageRequest(Model):
+    message: str
+
+class RSVPRequest(Model):
+    event_name: str
+    date: str
+    time: str
+    location: str
+    description: Optional[str] = None
+
+class RSVPResponse(Model):
+    status: str
+    message: str
