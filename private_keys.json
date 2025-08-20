@@ -10,5 +10,9 @@
     "llm_tester_agent": {
         "identity_key": "17cf3a006ef45c69edd513a5d0d9cad3f0aeee996ac0990650e199c82eee9d42",
         "wallet_key": "2WuEG49g3g1lICoh+8pLi2L3NnCE4MMC5n/NYP5iGp0="
+    },
+    "llm_full_flow_tester": {
+        "identity_key": "1eb2ecdbef66a5fe09d2dba3221a78e09a32927fd58bf4ce6f6cf82f655ecf71",
+        "wallet_key": "LW+Jk+l6t/OHO/cJeRUB7k8xHVcMQDjOXPjcbWUyyqk="
     }
 }

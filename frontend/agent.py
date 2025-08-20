@@ -33,7 +33,7 @@ agent = Agent(
 )
 
 # LLM Agent address for structured output
-LLM_AGENT_ADDRESS = "agent1q0h70caed8ax769shpemapzkyk65uscw4xwk6dc4t3emvp5jdcvqs9xs32y"
+LLM_AGENT_ADDRESS = "agent1qvk7q2av3e2y5gf5s90nfzkc8a48q3wdqeevwrtgqfdl0k78rspd6f2l4dx"
 
 # Include protocols untuk hackathon eligibility
 agent.include(chat_protocol, publish_manifest=True)
@@ -60,7 +60,7 @@ async def cleanup(ctx: Context):
         await rsvp_service.session.close()
     ctx.logger.info("👋 RSVP Manager Agent shutdown complete!")
 
-@chat_protocol.on_message(model=ChatMessage)
+@agent.on_message(model=ChatMessage)
 async def handle_chat_message(ctx: Context, sender: str, msg: ChatMessage):
     """Handle incoming chat messages dari users"""
     ctx.logger.info(f"📨 Received chat from {sender}: {msg.message}")

@@ -1,39 +1,38 @@
-# File: frontend/test_agent.py
+# File: frontend/test_agent.py (Versi Final Sederhana)
 import asyncio
 from uagents import Agent, Context
-from models import NaturalLanguageRequest, RSVPResponse
+from models import ChatMessage, RSVPResponse # Kita tidak perlu chat_protocol di sini
 import logging
 
-# Configure logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
-# Initialize test agent
-tester_agent = Agent(
-    name="llm_tester_agent",
+# Ganti dengan alamat agent.py Anda yang sedang berjalan
+MAIN_AGENT_ADDRESS = "agent1qduet3vnuswx0ep09szc94u2lrmrn9ws9mrxq0990dwh5cxgzktt2j6jknz"
+TEST_MESSAGE = "Tolong buatkan event 'Hackathon Afterparty' tanggal 24 Agustus 2025 jam 8 malam di 'Rooftop Cafe'. Deskripsinya 'Perayaan selesai hackathon'."
+
+agent = Agent(
+    name="final_simple_tester",
+    seed="final_simple_tester_seed",
     port=8003,
     endpoint=["http://127.0.0.1:8003/submit"]
 )
 
-# Target agent address
-TARGET_AGENT_ADDRESS = "agent1qduet3vnuswx0ep09szc94u2lrmrn9ws9mrxq0990dwh5cxgzktt2j6jknz"
-
-@tester_agent.on_interval(period=5.0)
-async def send_message_on_interval(ctx: Context):
-    # Create a natural language request
-    nl_request = NaturalLanguageRequest(
-        message="I want to RSVP for a Python Workshop on August 25th 2025 at 2 PM in the Jakarta Digital Hub"
+@agent.on_event("startup")
+async def send_test_message(ctx: Context):
+    """Kirim pesan tes sederhana saat startup."""
+    ctx.logger.info(f"Mengirim pesan ke {MAIN_AGENT_ADDRESS}")
+    await ctx.send(
+        MAIN_AGENT_ADDRESS,
+        ChatMessage(message=TEST_MESSAGE, sender_address=agent.address)
     )
-    
-    try:
-        await ctx.send(TARGET_AGENT_ADDRESS, nl_request)
-        ctx.logger.info(f"Mengirim pesan natural language ke {TARGET_AGENT_ADDRESS}")
-    except Exception as e:
-        ctx.logger.error(f"Error sending message: {str(e)}")
 
-@tester_agent.on_message(model=RSVPResponse)
-async def handle_response(ctx: Context, sender: str, msg: RSVPResponse):
-    ctx.logger.info(f"Received response: {msg.status}")
+@agent.on_message(model=RSVPResponse)
+async def handle_final_response(ctx: Context, sender: str, msg: RSVPResponse):
+    """Handle balasan akhir dari agen utama."""
+    ctx.logger.info("✅ BERHASIL MENERIMA BALASAN AKHIR!")
+    ctx.logger.info(f"Success Status: {msg.success}")
     ctx.logger.info(f"Message: {msg.message}")
+    await ctx.stop()
 
 if __name__ == "__main__":
-    tester_agent.run()
+    agent.run()

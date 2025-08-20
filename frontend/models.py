@@ -109,7 +109,3 @@ class RSVPRequest(Model):
     time: str
     location: str
     description: Optional[str] = None
-
-class RSVPResponse(Model):
-    status: str
-    message: str
