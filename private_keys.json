@@ -1,0 +1,10 @@
+{
+    "tester_agent": {
+        "identity_key": "be67591638b4eb60cb252f20a0a9f5dc24c41e66bce804a1e2b37ac368962a31",
+        "wallet_key": "L7lyRydmR2PCcYg8XckGJv9fOtMp3lQCOWl0M+oVyOo="
+    },
+    "rsvp_manager_agent": {
+        "identity_key": "a0ecbe0b18db797dd1deb5ad26f1cef88e82a5295c0b9207ba4d5c9661310427",
+        "wallet_key": "v2nz2hrClHbNgcz3TfyZXe4eqNAnqMmSckyAVjwbqPU="
+    }
+}

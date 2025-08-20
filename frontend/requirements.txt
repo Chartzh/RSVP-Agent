@@ -1,0 +1,6 @@
+uagents
+aiohttp
+cbor2
+ic-py
+pydantic
+python-dotenv  # Jika Anda menggunakan file .env untuk konfigurasi
