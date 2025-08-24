@@ -7,7 +7,7 @@ import Debug "mo:base/Debug";
 import Iter "mo:base/Iter";
 import Nat "mo:base/Nat";
 
-actor RSVPManager {
+persistent actor RSVPManager {
     // Type definitions
     public type RSVP = {
         id: Text;
@@ -45,9 +45,9 @@ actor RSVPManager {
     private stable var eventEntries : [(Text, Event)] = [];
     private stable var nextId : Nat = 1;
     
-    private var rsvps = Map.HashMap<Text, RSVP>(10, Text.equal, Text.hash);
-    private var events = Map.HashMap<Text, Event>(10, Text.equal, Text.hash);
-
+    private transient var rsvps = Map.HashMap<Text, RSVP>(10, Text.equal, Text.hash);
+    private transient var events = Map.HashMap<Text, Event>(10, Text.equal, Text.hash);
+    
     // System functions for upgrades
     system func preupgrade() {
         rsvpEntries := Iter.toArray(rsvps.entries());
@@ -94,7 +94,7 @@ actor RSVPManager {
         };
         
         events.put(eventId, newEvent);
-        #ok("Event created successfully with ID: " # eventId)
+        return #Ok("Event created successfully with ID: " # eventId);
     };
 
     // Add RSVP
@@ -153,7 +153,7 @@ actor RSVPManager {
             };
         };
 
-        #ok("RSVP added successfully with ID: " # rsvpId)
+        return #Ok("RSVP added successfully with ID: " # rsvpId);
     };
 
     // List all RSVPs
@@ -211,10 +211,10 @@ actor RSVPManager {
                     };
                 };
                 
-                #ok("RSVP cancelled successfully")
+                return #Ok("RSVP cancelled successfully");
             };
             case null {
-                #err("RSVP not found")
+                return #err("RSVP not found");
             };
         }
     };

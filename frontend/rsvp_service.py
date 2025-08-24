@@ -3,12 +3,16 @@ import cbor2
 import json
 from typing import Optional, List, Dict, Any
 from models import RSVP, Event, RSVPInput, EventInput, ServiceResult
+import logging
+import time
 
 class RSVPService:
     def __init__(self, canister_id: str = None, gateway_url: str = "http://127.0.0.1:4943"):
         self.gateway_url = gateway_url
-        self.canister_id = canister_id or "uxrrr-q7777-77774-qaaaq-cai"  # Default local canister ID
-        self.session = None
+        self.canister_id = canister_id or "uxrrr-q7777-77774-qaaaq-cai"  # Pastikan ID ini benar
+        
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.INFO)
     
     async def __aenter__(self):
         self.session = aiohttp.ClientSession()
@@ -19,129 +23,159 @@ class RSVPService:
             await self.session.close()
     
     async def _call_canister(self, method_name: str, args: Any = None) -> ServiceResult:
-        """Memanggil method di canister dengan format ICP HTTP Gateway v2"""
+        """Memanggil method di canister dengan format CBOR dan payload yang lengkap"""
         try:
-            # Prepare the call payload
-            call_payload = {
+            # BARU: Membuat timestamp kedaluwarsa 5 menit dari sekarang
+            expiry_time = int((time.time() + 300) * 1_000_000_000)
+
+            candid_arg_bytes = b''
+            if isinstance(args, dict):
+                if all(k in args for k in ['name', 'description', 'date', 'max_participants']):
+                    candid_arg_bytes = self._encode_event_input(args)
+                elif all(k in args for k in ['event_name', 'participant_name', 'participant_email']):
+                    candid_arg_bytes = self._encode_rsvp_input(args)
+            elif isinstance(args, str):
+                candid_arg_bytes = self._encode_text(args)
+
+            inner_payload = {
                 "request_type": "call",
                 "canister_id": self.canister_id,
                 "method_name": method_name,
-                "arg": cbor2.dumps(args) if args is not None else cbor2.dumps(()),
-                "sender": "2vxsx-fae",  # Anonymous caller
+                "arg": candid_arg_bytes,
+                "ingress_expiry": expiry_time, # <-- BARU: Menambahkan expiry
+                "sender": b'\x04' # <-- DIUBAH: Menggunakan sender anonim yang benar
             }
-            
-            # Encode to CBOR
-            cbor_data = cbor2.dumps(call_payload)
-            
-            # Make the request
+
+            final_payload = {"content": inner_payload}
+            cbor_payload = cbor2.dumps(final_payload)
+
             url = f"{self.gateway_url}/api/v2/canister/{self.canister_id}/call"
-            headers = {
-                "Content-Type": "application/cbor",
-            }
-            
-            async with self.session.post(url, data=cbor_data, headers=headers) as response:
+            headers = {"Content-Type": "application/cbor"}
+
+            async with self.session.post(url, data=cbor_payload, headers=headers) as response:
                 if response.status == 200:
-                    response_data = await response.read()
-                    decoded_response = cbor2.loads(response_data)
-                    
-                    # Handle different response formats
-                    if isinstance(decoded_response, dict):
-                        if "status" in decoded_response and decoded_response["status"] == "replied":
-                            result = decoded_response.get("reply", {}).get("arg", None)
-                            if result:
-                                decoded_result = cbor2.loads(result)
-                                return ServiceResult(
-                                    success=True,
-                                    message="Success",
-                                    data=decoded_result
-                                )
-                    
-                    return ServiceResult(
-                        success=True,
-                        message="Success",
-                        data=decoded_response
-                    )
+                    response_bytes = await response.read()
+                    return ServiceResult(success=True, message="Success", data=cbor2.loads(response_bytes))
                 else:
                     error_text = await response.text()
-                    return ServiceResult(
-                        success=False,
-                        message=f"HTTP {response.status}: {error_text}",
-                        data=None
-                    )
-                    
+                    return ServiceResult(success=False, message=f"HTTP {response.status}: {error_text}", data=None)
         except Exception as e:
-            return ServiceResult(
-                success=False,
-                message=f"Error calling canister: {str(e)}",
-                data=None
-            )
-    
+            self.logger.error(f"Error calling canister: {str(e)}")
+            return ServiceResult(success=False, message=f"Error calling canister: {str(e)}", data=None)
+
     async def _query_canister(self, method_name: str, args: Any = None) -> ServiceResult:
-        """Query method di canister (read-only operations)"""
+        """Query method di canister dengan format CBOR dan payload yang lengkap"""
         try:
-            # Prepare the query payload
-            query_payload = {
+            # BARU: Membuat timestamp kedaluwarsa 5 menit dari sekarang
+            expiry_time = int((time.time() + 300) * 1_000_000_000)
+
+            candid_arg_bytes = b''
+            if isinstance(args, str):
+                candid_arg_bytes = self._encode_text(args)
+
+            inner_payload = {
                 "request_type": "query",
                 "canister_id": self.canister_id,
                 "method_name": method_name,
-                "arg": cbor2.dumps(args) if args is not None else cbor2.dumps(()),
-                "sender": "2vxsx-fae",  # Anonymous caller
+                "arg": candid_arg_bytes,
+                "ingress_expiry": expiry_time, # <-- BARU: Menambahkan expiry
+                "sender": b'\x04' # <-- DIUBAH: Menggunakan sender anonim yang benar
             }
             
-            # Encode to CBOR
-            cbor_data = cbor2.dumps(query_payload)
+            final_payload = {"content": inner_payload}
+            cbor_payload = cbor2.dumps(final_payload)
             
-            # Make the request
             url = f"{self.gateway_url}/api/v2/canister/{self.canister_id}/query"
-            headers = {
-                "Content-Type": "application/cbor",
-            }
+            headers = {"Content-Type": "application/cbor"}
             
-            async with self.session.post(url, data=cbor_data, headers=headers) as response:
+            async with self.session.post(url, data=cbor_payload, headers=headers) as response:
                 if response.status == 200:
-                    response_data = await response.read()
-                    decoded_response = cbor2.loads(response_data)
-                    
-                    # Handle query response format
-                    if isinstance(decoded_response, dict):
-                        if "status" in decoded_response and decoded_response["status"] == "replied":
-                            result = decoded_response.get("reply", {}).get("arg", None)
-                            if result:
-                                decoded_result = cbor2.loads(result)
-                                return ServiceResult(
-                                    success=True,
-                                    message="Success",
-                                    data=decoded_result
-                                )
-                    
-                    return ServiceResult(
-                        success=True,
-                        message="Success",
-                        data=decoded_response
-                    )
+                    response_bytes = await response.read()
+                    response_data = cbor2.loads(response_bytes)
+                    if response_data.get("status") == "replied":
+                        decoded_arg = cbor2.loads(response_data['reply']['arg'])
+                        return ServiceResult(success=True, message="Success", data=decoded_arg)
+                    else:
+                        return ServiceResult(success=False, message=f"Query failed: {response_data.get('reject_message')}", data=None)
                 else:
                     error_text = await response.text()
-                    return ServiceResult(
-                        success=False,
-                        message=f"HTTP {response.status}: {error_text}",
-                        data=None
-                    )
-                    
+                    return ServiceResult(success=False, message=f"HTTP {response.status}: {error_text}", data=None)
         except Exception as e:
-            return ServiceResult(
-                success=False,
-                message=f"Error querying canister: {str(e)}",
-                data=None
-            )
+            self.logger.error(f"Error querying canister: {str(e)}")
+            return ServiceResult(success=False, message=f"Error querying canister: {str(e)}", data=None)
     
+    def _encode_event_input(self, event_data: dict) -> bytes:
+        """Encode EventInput to Candid format"""
+        try:
+            # Simple Candid encoding for EventInput record
+            # This is a basic implementation - in production you'd use a proper Candid library
+            candid_data = b'DIDL\x01\x6c\x04'  # Record with 4 fields
+            candid_data += b'\x00\x01\x02\x03'  # Field indices
+            candid_data += b'\x71\x71\x71\x7f'  # Types: text, text, text, nat
+            
+            # Encode field values
+            name = event_data.get('name', '').encode('utf-8')
+            description = event_data.get('description', '').encode('utf-8')
+            date = event_data.get('date', '').encode('utf-8')
+            max_participants = event_data.get('max_participants', 0)
+            
+            # Add lengths and data
+            candid_data += len(name).to_bytes(4, 'little') + name
+            candid_data += len(description).to_bytes(4, 'little') + description  
+            candid_data += len(date).to_bytes(4, 'little') + date
+            candid_data += max_participants.to_bytes(8, 'little')
+            
+            return candid_data
+        except Exception as e:
+            self.logger.error(f"Error encoding event input: {e}")
+            return b'DIDL\x00\x00'  # Return empty record on error
+    
+    def _encode_rsvp_input(self, rsvp_data: dict) -> bytes:
+        """Encode RSVPInput to Candid format"""
+        try:
+            # Simple Candid encoding for RSVPInput record
+            candid_data = b'DIDL\x01\x6c\x03'  # Record with 3 fields
+            candid_data += b'\x00\x01\x02'  # Field indices
+            candid_data += b'\x71\x71\x71'  # Types: text, text, text
+            
+            # Encode field values
+            event_name = rsvp_data.get('event_name', '').encode('utf-8')
+            participant_name = rsvp_data.get('participant_name', '').encode('utf-8')
+            participant_email = rsvp_data.get('participant_email', '').encode('utf-8')
+            
+            # Add lengths and data
+            candid_data += len(event_name).to_bytes(4, 'little') + event_name
+            candid_data += len(participant_name).to_bytes(4, 'little') + participant_name
+            candid_data += len(participant_email).to_bytes(4, 'little') + participant_email
+            
+            return candid_data
+        except Exception as e:
+            self.logger.error(f"Error encoding RSVP input: {e}")
+            return b'DIDL\x00\x00'  # Return empty record on error
+    
+    def _encode_text(self, text: str) -> bytes:
+        """Encode simple text to Candid format"""
+        try:
+            text_bytes = text.encode('utf-8')
+            candid_data = b'DIDL\x00\x01\x71'  # Text type
+            candid_data += len(text_bytes).to_bytes(4, 'little') + text_bytes
+            return candid_data
+        except Exception as e:
+            self.logger.error(f"Error encoding text: {e}")
+            return b'DIDL\x00\x00'  # Return empty record on error
+        
     async def create_event(self, event_input: EventInput) -> ServiceResult:
         """Membuat event baru"""
+        self.logger.info(f"📤 Creating event: {event_input.name}")
+        
+        # Convert EventInput to dict format expected by canister
         args = {
             "name": event_input.name,
             "description": event_input.description,
             "date": event_input.date,
             "max_participants": event_input.max_participants
         }
+        
         return await self._call_canister("create_event", args)
     
     async def add_rsvp(self, rsvp_input: RSVPInput) -> ServiceResult:

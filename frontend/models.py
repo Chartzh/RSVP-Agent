@@ -67,7 +67,7 @@ class StructuredOutputResponse(Model):
     rsvp_input: Optional[dict] = None
     event_name: Optional[str] = None
     rsvp_id: Optional[str] = None
-    user_query: Optional[str] = None
+    user_address: str  # Added this field
 
 class RSVPResponse(Model):
     success: bool
@@ -97,15 +97,5 @@ chat_protocol = Protocol("Chat")
 structured_output_protocol = Protocol("StructuredOutput")
 rsvp_response_protocol = Protocol("RSVPResponse")
 
-from uagents import Model
-from typing import Optional
-
 class NaturalLanguageRequest(Model):
     message: str
-
-class RSVPRequest(Model):
-    event_name: str
-    date: str
-    time: str
-    location: str
-    description: Optional[str] = None
